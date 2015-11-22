@@ -23,9 +23,12 @@ distanceEuclidean = (sqrt .) . (sum .) . zipWith (\x v -> (x - v)^2)
 distanceHamming :: Object -> Object -> Float
 distanceHamming = (sum .) . zipWith (\x v -> abs (x - v))
 
-distance :: DistanceType -> [Float] -> [Float] -> Float
+distance :: DistanceType -> Object -> Object -> Float
 distance Euclidean = distanceEuclidean
 distance Hamming = distanceHamming
+
+normMatrix :: AssignMatrix -> AssignMatrix -> Float
+normMatrix kss1 kss = maximum $ zipWith ((abs .) . (-)) (concat kss1) (concat kss)
 
 -- ===========================
 col :: [[a]] -> [a]
@@ -34,30 +37,37 @@ col = map head
 woCol :: [[a]] -> [[a]]
 woCol = map tail
 
---transpose :: [[a]] -> [[a]]
---transpose xss
---    | sum (map length xss) == 0 = []
---    | otherwise = (col xss):(transpose (woCol xss))
+-- transpose :: [[a]] -> [[a]]
+-- transpose xss
+--     | sum (map length xss) == 0 = []
+--     | otherwise = (col xss):(transpose (woCol xss))
 
 -- ===========================
---genCenters :: AssignMatrix -> [Object]-> ClasterCenters
---genCenters mss (xs:xss) = ():(genCenters mss xss)
---    where sumU = map (sum . map (^2)) . transpose
---          sumUX mss xss = zipWith (\x v -> x * v) (map (map (^2)) (transpose mss)) 
+genCenters :: Float -> AssignMatrix -> [Object]-> ClasterCenters
+genCenters m uss xss = map byL (transpose uss)
+    where byL us = map (byJ (pow us)) (transpose xss)
+          byJ p_us xs = (sum $ zipWith (*) p_us xs) / (sum p_us)
+          pow = map (**m)
 
 randGenCenters :: CenterCount -> [Object] -> AssignMatrix
 randGenCenters c = take c . shuffle
-    where shuffle = sortBy (\a b -> (toEnum (fst ((randomR (0,2) $ mkStdGen 4)::(Int,StdGen)))::Ordering))
+    where shuffle = sortBy (\a b -> (toEnum randOrdInt :: Ordering))
+          randOrdInt = fst ((randomR (0,2) $ mkStdGen 4) :: (Int,StdGen))
 
 -- ===========================
-genAssign :: [Object]-> ClasterCenters -> AssignMatrix
-genAssign s ss = [[1.0]]
+genAssign :: Float -> DistanceType -> ClasterCenters -> [Object]-> AssignMatrix
+genAssign m dt vss xss = map byI xss
+    where byI xs = map (byK xs) vss
+          byK xs vs_k = 1.0 / ((sum . pow) $ map (\vs_j -> (d xs vs_k) / (d xs vs_j)) vss)
+          pow = map (**(2/(m-1)))
+          d = distance dt
 
 randGenAssign :: CenterCount -> [Object] -> AssignMatrix
 randGenAssign _ [] = []
 randGenAssign c (xs:xss) = (normalize randList):(randGenAssign c xss)
     where randList = take c $ randoms (mkStdGen $ floor(sum xs)) :: [Float]
           normalize xs = map (/(sum xs)) xs
+
 
 -- ===========================
 
