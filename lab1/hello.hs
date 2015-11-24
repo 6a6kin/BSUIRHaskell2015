@@ -1,4 +1,3 @@
-import qualified Data.Set as Set
 import System.Random
 import Data.List
 import Data.List.Split
@@ -10,8 +9,6 @@ type ClasterCenters = [Object]
 type AssignMatrix = [[Float]]
 
 type CenterCount = Int
-
-data CsvSettingsOption = CsvIgnoreHeader | CsvIgnoreFirstCol | CsvIgnoreLastCol
 
 data DistanceType = Euclidean | Hamming deriving (Enum,Eq,Show,Read)
 
@@ -75,13 +72,14 @@ genCenters st uss xss = map byL (transpose uss)
           pow = map (**expCoeff st)
 
 randGenCenters :: StdGen -> CenterCount -> [Object] -> ClasterCenters
-randGenCenters seed c xss = map ((!!) xss) (randomRs (0, length xss - 1) seed :: [Int])
+randGenCenters seed c xss = map (xss !!) (take c $ randomRs (0, length xss - 1) seed :: [Int])
 
 -- ===========================
 genAssign :: Settings -> ClasterCenters -> [Object]-> AssignMatrix
 genAssign st vss = map byI
     where byI xs = map (byK xs) vss
-          byK xs vs_k = 1.0 / (sum . pow) (map (\vs_j -> d xs vs_k / d xs vs_j) vss)
+          byK xs vs_k = if xs == vs_k then 1
+                        else 1.0 / (sum . pow) (map (\vs_j -> d xs vs_k / d xs vs_j) vss)
           pow = map (**(2/(expCoeff st - 1)))
           d = distance $ distanceType st
 
@@ -101,9 +99,8 @@ cmeans seed st xss = cmeansInternal st xss uss
 -- gen assign matrix is always first step for internal func
 cmeansInternal :: Settings -> [Object] -> AssignMatrix -> AssignMatrix
 cmeansInternal st xss uss = let uss_k1 = genAssign st (genCenters st uss xss) xss
-                             --in uss
-                             in if matrixNorma uss_k1 uss < precision st then uss_k1
-                                else cmeansInternal st xss uss_k1
+                            in if matrixNorma uss_k1 uss < precision st then uss_k1
+                               else cmeansInternal st xss uss_k1
 
 -- ===========================
 main = do 
