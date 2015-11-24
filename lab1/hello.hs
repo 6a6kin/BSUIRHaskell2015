@@ -16,7 +16,8 @@ data Settings = Settings { csvColSplitter :: String
                          , csvIgnoreFirstCol :: Bool
                          , csvIgnoreLastCol :: Bool
                          , csvIgnoreHeader :: Bool
-                         , filename :: String
+                         , inputFile :: String
+                         , outputFile :: String
                          , clasterCount :: Int
                          , precision :: Float
                          , distanceType :: DistanceType
@@ -24,11 +25,13 @@ data Settings = Settings { csvColSplitter :: String
                          , isRandMatrix :: Bool
                          } deriving (Show)
 
+defaultSettings :: Settings
 defaultSettings = Settings {csvColSplitter = ","
                          , csvIgnoreFirstCol = False
                          , csvIgnoreLastCol = True
                          , csvIgnoreHeader = False
-                         , filename = "input.txt"
+                         , inputFile = "input.txt"
+                         , outputFile = ""
                          , clasterCount = 2
                          , precision = 0.00001
                          , distanceType = Euclidean
@@ -36,11 +39,9 @@ defaultSettings = Settings {csvColSplitter = ","
                          , isRandMatrix = True
                          }
 
---parseArgs :: String -> Settings
---parseArgs = (\x -> Set.empty) . words
-
+-- ===========================
 distanceEuclidean :: Object -> Object -> Float
-distanceEuclidean = (sqrt .) . (sum .) . zipWith (\x v -> (x - v)^2)
+distanceEuclidean = (sqrt .) . (sum .) . zipWith (\x v -> (x - v)**2)
 
 distanceHamming :: Object -> Object -> Float
 distanceHamming = (sum .) . zipWith (\x v -> abs (x - v))
@@ -51,18 +52,6 @@ distance Hamming = distanceHamming
 
 matrixNorma :: AssignMatrix -> AssignMatrix -> Float
 matrixNorma kss1 kss = maximum $ zipWith ((abs .) . (-)) (concat kss1) (concat kss)
-
--- ===========================
-col :: [[a]] -> [a]
-col = map head
-
-woCol :: [[a]] -> [[a]]
-woCol = map tail
-
--- transpose :: [[a]] -> [[a]]
--- transpose xss
---     | sum (map length xss) == 0 = []
---     | otherwise = (col xss):(transpose (woCol xss))
 
 -- ===========================
 genCenters :: Settings -> AssignMatrix -> [Object]-> ClasterCenters
@@ -85,8 +74,8 @@ genAssign st vss = map byI
 
 randGenAssign :: StdGen -> CenterCount -> [Object] -> AssignMatrix
 randGenAssign _ _ [] = []
-randGenAssign seed c xss = map normalize $ randList xss
-    where randList xss = chunksOf c $ take (c * length xss) (randoms seed :: [Float])
+randGenAssign seed c xss = map normalize randList
+    where randList = chunksOf c $ take (c * length xss) (randoms seed :: [Float])
           normalize xs = map (/ sum xs) xs
 
 -- ===========================
@@ -103,6 +92,7 @@ cmeansInternal st xss uss = let uss_k1 = genAssign st (genCenters st uss xss) xs
                                else cmeansInternal st xss uss_k1
 
 -- ===========================
+main :: IO ()
 main = do 
     seed <- getStdGen
-    print $ cmeans seed (defaultSettings {clasterCount=2, distanceType=Euclidean, expCoeff=2, isRandMatrix=False}) [[1.0,3],[1,5],[2,4],[3,3],[2,2],[2,1],[1,0],[5,5],[6,5],[7,6],[5,3],[7,3],[6,2],[6,1],[8,1]]
+    mapM_ (putStrLn.show) (cmeans seed (defaultSettings {clasterCount=2, distanceType=Euclidean, expCoeff=2, isRandMatrix=False}) [[1.0,3],[1,5],[2,4],[3,3],[2,2],[2,1],[1,0],[5,5],[6,5],[7,6],[5,3],[7,3],[6,2],[6,1],[8,1]])
