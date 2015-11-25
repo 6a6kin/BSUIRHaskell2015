@@ -1,6 +1,12 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+
 import System.Random
 import Data.List
 import Data.List.Split
+import System.Console.CmdArgs
+
+import qualified Data.Vector as V
+import Data.CSV.Conduit
 
 type Object = [Float]
 
@@ -10,34 +16,34 @@ type AssignMatrix = [[Float]]
 
 type CenterCount = Int
 
-data DistanceType = Euclidean | Hamming deriving (Enum,Eq,Show,Read)
+data DistanceType = Euclidean | Hamming deriving (Enum, Eq, Show, Read, Data, Typeable)
 
 data Settings = Settings { csvColSplitter :: String
                          , csvIgnoreFirstCol :: Bool
                          , csvIgnoreLastCol :: Bool
                          , csvIgnoreHeader :: Bool
-                         , inputFile :: String
-                         , outputFile :: String
+                         , inputFile :: FilePath
+                         , outputFile :: FilePath
                          , clasterCount :: Int
                          , precision :: Float
                          , distanceType :: DistanceType
                          , expCoeff :: Float
                          , isRandMatrix :: Bool
-                         } deriving (Show)
+                         } deriving (Data, Typeable, Show, Eq)
 
 defaultSettings :: Settings
-defaultSettings = Settings {csvColSplitter = ","
-                         , csvIgnoreFirstCol = False
-                         , csvIgnoreLastCol = True
-                         , csvIgnoreHeader = False
-                         , inputFile = "input.txt"
-                         , outputFile = ""
-                         , clasterCount = 2
-                         , precision = 0.00001
-                         , distanceType = Euclidean
-                         , expCoeff = 2
-                         , isRandMatrix = True
-                         }
+defaultSettings = Settings { csvColSplitter = ","         &= help "Column delimiter (default=,)"        &= typ "delim"
+                           , csvIgnoreFirstCol = False    &= help "Ignore first column"   
+                           , csvIgnoreLastCol = True      &= help "Ignore last column"    
+                           , csvIgnoreHeader = False      &= help "Ignore header"         
+                           , clasterCount = 2             &= help "Claster count"                       &= typ "count"
+                           , precision = 0.00001          &= help "Precision"
+                           , distanceType = Euclidean     &= help "Distance type (Euclidean, Hamming)"
+                           , expCoeff = 2                 &= help "m - exp coefficient"
+                           , isRandMatrix = True          &= help "First action in FCM (True - generate matrix, False - generate centers)"   
+                           , inputFile = "input.txt"      &= help "Input filename"                      &= typ "infile"
+                           , outputFile = ""              &= help "Output filename"                     &= typ "outfile"
+                           } &= summary "Lab1 FCM 2015" &= program "lab1"
 
 -- ===========================
 distanceEuclidean :: Object -> Object -> Float
@@ -92,7 +98,19 @@ cmeansInternal st xss uss = let uss_k1 = genAssign st (genCenters st uss xss) xs
                                else cmeansInternal st xss uss_k1
 
 -- ===========================
+convertFromCsv :: Settings -> V.Vector (Row String) -> [Object]
+convertFromCsv st = processCsv . V.toList
+    where processCsv = map processRow . ignoreHeader
+          ignoreHeader = if csvIgnoreHeader st then tail else id
+          processRow = map (read ) . ignoreFirst . ignoreLast
+          ignoreFirst = if csvIgnoreFirstCol st then tail else id
+          ignoreLast = if csvIgnoreLastCol st then init else id
+
+-- ===========================
 main :: IO ()
 main = do 
+    opts <- cmdArgs defaultSettings
     seed <- getStdGen
-    mapM_ (putStrLn.show) (cmeans seed (defaultSettings {clasterCount=2, distanceType=Euclidean, expCoeff=2, isRandMatrix=False}) [[1.0,3],[1,5],[2,4],[3,3],[2,2],[2,1],[1,0],[5,5],[6,5],[7,6],[5,3],[7,3],[6,2],[6,1],[8,1]])
+    print opts
+    inp <- runResourceT $ readCSVFile (defCSVSettings {csvSep = head (csvColSplitter opts), csvQuoteChar = Nothing}) (inputFile opts)
+    mapM_ (putStrLn.show) (cmeans seed opts (convertFromCsv opts inp))

@@ -20,6 +20,6 @@ executable lab1
   main-is:             hello.hs
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base >=4.8 && <4.9,random,split
+  build-depends:       base >=4.8 && <4.9,random,split,text,vector,cmdargs,csv-conduit,conduit,conduit-extra
   -- hs-source-dirs:      
   default-language:    Haskell98
