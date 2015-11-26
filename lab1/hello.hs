@@ -1,12 +1,19 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 import System.Random
+import System.IO
 import Data.List
 import Data.List.Split
 import System.Console.CmdArgs
 
 import qualified Data.Vector as V
 import Data.CSV.Conduit
+import Data.Conduit
+import qualified Data.Conduit.Binary as CB
+import qualified Data.Conduit.List as CL
+import qualified Data.ByteString.Char8 as B
+
+import Numeric
 
 type Object = [Float]
 
@@ -102,15 +109,27 @@ convertFromCsv :: Settings -> V.Vector (Row String) -> [Object]
 convertFromCsv st = processCsv . V.toList
     where processCsv = map processRow . ignoreHeader
           ignoreHeader = if csvIgnoreHeader st then tail else id
-          processRow = map (read ) . ignoreFirst . ignoreLast
+          processRow = map read . ignoreFirst . ignoreLast
           ignoreFirst = if csvIgnoreFirstCol st then tail else id
           ignoreLast = if csvIgnoreLastCol st then init else id
+
+convertToCsv :: Settings -> [Object] -> [B.ByteString]
+convertToCsv st = map (B.pack . intercalate (csvColSplitter st) . map ((\f -> f "") . showFFloat (Just 6)))
+
+buildOutputHandle :: Settings -> IO Handle
+buildOutputHandle st 
+    | outputFile st /= ""  = openFile (outputFile st) WriteMode
+    | otherwise            = return stdout
 
 -- ===========================
 main :: IO ()
 main = do 
     opts <- cmdArgs defaultSettings
+    let csvOpts = defCSVSettings {csvSep = head (csvColSplitter opts), csvQuoteChar = Nothing}
+
     seed <- getStdGen
-    print opts
-    inp <- runResourceT $ readCSVFile (defCSVSettings {csvSep = head (csvColSplitter opts), csvQuoteChar = Nothing}) (inputFile opts)
-    mapM_ (putStrLn.show) (cmeans seed opts (convertFromCsv opts inp))
+    input <- runResourceT $ readCSVFile csvOpts (inputFile opts)
+
+    let cmeansResult = cmeans seed opts (convertFromCsv opts input)
+
+    runResourceT $ CL.sourceList (convertToCsv opts cmeansResult) $$ CB.sinkIOHandle (buildOutputHandle opts)
