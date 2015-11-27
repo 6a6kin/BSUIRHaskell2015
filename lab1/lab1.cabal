@@ -7,7 +7,7 @@ version:             0.1.0.0
 -- description:         
 homepage:            https://github.com/6a6kin/BSUIRHaskell2015
 -- license:             
-license-file:        LICENSE
+-- license-file:        LICENSE
 author:              Valery Plotnik
 maintainer:          6a6kin@gmail.com
 -- copyright:           
@@ -15,11 +15,12 @@ category:            Math
 build-type:          Simple
 -- extra-source-files:  
 cabal-version:       >=1.10
+  
 
 executable lab1
-  main-is:             hello.hs
-  -- other-modules:       
+  main-is:           hello.hs
+  other-modules:     HelloTests
   -- other-extensions:    
-  build-depends:       base >=4.8 && <4.9,random,split,text,vector,cmdargs,csv-conduit,conduit,conduit-extra,bytestring
+  build-depends:     base >=4.8 && <4.9,random,split,text,vector,cmdargs,csv-conduit,conduit,conduit-extra,bytestring,HUnit
   -- hs-source-dirs:      
-  default-language:    Haskell98
+  default-language:  Haskell98

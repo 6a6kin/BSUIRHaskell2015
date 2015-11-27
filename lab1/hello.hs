@@ -1,5 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
+module Lab1
+where
+
 import System.Random
 import System.IO
 import Data.List
@@ -12,6 +15,7 @@ import Data.Conduit
 import qualified Data.Conduit.Binary as CB
 import qualified Data.Conduit.List as CL
 import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString as BS
 
 import Numeric
 
@@ -114,7 +118,7 @@ convertFromCsv st = processCsv . V.toList
           ignoreLast = if csvIgnoreLastCol st then init else id
 
 convertToCsv :: Settings -> [Object] -> [B.ByteString]
-convertToCsv st = map (B.pack . intercalate (csvColSplitter st) . map ((\f -> f "") . showFFloat (Just 6)))
+convertToCsv st = intersperse (BS.pack [13, 10]) . map (B.pack . intercalate (csvColSplitter st) . map ((\f -> f "") . showFFloat (Just 6)))
 
 buildOutputHandle :: Settings -> IO Handle
 buildOutputHandle st 
@@ -128,6 +132,7 @@ main = do
     let csvOpts = defCSVSettings {csvSep = head (csvColSplitter opts), csvQuoteChar = Nothing}
 
     seed <- getStdGen
+
     input <- runResourceT $ readCSVFile csvOpts (inputFile opts)
 
     let cmeansResult = cmeans seed opts (convertFromCsv opts input)
