@@ -3,19 +3,19 @@
 module Lab1
 where
 
+import Control.Exception
 import System.Random
 import System.IO
+import System.Console.CmdArgs
 import Data.List
 import Data.List.Split
-import System.Console.CmdArgs
+import qualified Data.Text as T
+import Data.Maybe
 
-import qualified Data.Vector as V
 import Data.CSV.Conduit
-import Data.Conduit
-import qualified Data.Conduit.Binary as CB
-import qualified Data.Conduit.List as CL
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString as BS
+import qualified Data.Vector as V
 
 import Numeric
 
@@ -70,6 +70,9 @@ distance Hamming = distanceHamming
 matrixNorma :: AssignMatrix -> AssignMatrix -> Float
 matrixNorma kss1 kss = maximum $ zipWith ((abs .) . (-)) (concat kss1) (concat kss)
 
+handleAll :: (SomeException -> IO a) -> IO a -> IO a
+handleAll = handle
+
 -- ===========================
 genCenters :: Settings -> AssignMatrix -> [Object]-> ClasterCenters
 genCenters st uss xss = map byL (transpose uss)
@@ -111,30 +114,18 @@ cmeansInternal st xss uss = let uss_k1 = genAssign st (genCenters st uss xss) xs
 -- ===========================
 convertFromCsv :: Settings -> V.Vector (Row String) -> [Object]
 convertFromCsv st = processCsv . V.toList
-    where processCsv = map processRow . ignoreHeader
+    where processCsv = filter (not . null) . map processRow . ignoreHeader
           ignoreHeader = if csvIgnoreHeader st then tail else id
-          processRow = map read . ignoreFirst . ignoreLast
+          processRow = map (fromMaybe 0.0) . filter isJust . map maybeRead . filterEmpty . ignoreFirst . ignoreLast
           ignoreFirst = if csvIgnoreFirstCol st then tail else id
           ignoreLast = if csvIgnoreLastCol st then init else id
+          filterEmpty = filter (\s -> T.strip (T.pack s) /= T.pack "")
+          maybeRead x = (fmap fst . listToMaybe . (reads :: String -> [(Float, String)])) x
 
 convertToCsv :: Settings -> [Object] -> [B.ByteString]
 convertToCsv st = intersperse (BS.pack [13, 10]) . map (B.pack . intercalate (csvColSplitter st) . map ((\f -> f "") . showFFloat (Just 6)))
 
 buildOutputHandle :: Settings -> IO Handle
-buildOutputHandle st 
-    | outputFile st /= ""  = openFile (outputFile st) WriteMode
+buildOutputHandle st
+    | outputFile st /= ""  = handleAll (\e -> do { putStrLn $ "Cannot open file for output, using screen: " ++ show e; return stdout }) (openFile (outputFile st) WriteMode)
     | otherwise            = return stdout
-
--- ===========================
-main :: IO ()
-main = do 
-    opts <- cmdArgs defaultSettings
-    let csvOpts = defCSVSettings {csvSep = head (csvColSplitter opts), csvQuoteChar = Nothing}
-
-    seed <- getStdGen
-
-    input <- runResourceT $ readCSVFile csvOpts (inputFile opts)
-
-    let cmeansResult = cmeans seed opts (convertFromCsv opts input)
-
-    runResourceT $ CL.sourceList (convertToCsv opts cmeansResult) $$ CB.sinkIOHandle (buildOutputHandle opts)

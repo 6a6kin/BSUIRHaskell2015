@@ -4,7 +4,16 @@ Function programming BSUIR 2015
 ## lab1
 
 ### Build via Cabal
-`cabal build`
+```
+cabal install
+cabal configure --enable-tests
+cabal build
+```
+
+### Run tests
+```
+cabal test
+```
 
 ### Command-line arguments
 *     --csvcolsplitter=DELIM       Column delimiter (default=,)
@@ -20,6 +29,8 @@ Function programming BSUIR 2015
 *     --israndmatrix               First action in FCM (True - generate matrix, False - generate centers)
 
 #### Example
-`lab1 --inputfile=butterfly.txt --outputfile=1.txt --clastercount=2`
-`lab1 --inputfile=glass.txt --outputfile=2.txt --clastercount=7 --israndmatrix=False`
-`lab1 --inputfile=irises.txt --clastercount=3 --israndmatrix=False --distancetype=Hamming`
+```
+lab1 --inputfile=butterfly.txt --outputfile=1.txt --clastercount=2
+lab1 --inputfile=glass.txt --outputfile=2.txt --clastercount=7 --israndmatrix=False
+lab1 --inputfile=irises.txt --clastercount=3 --israndmatrix=False --distancetype=Hamming
+```
